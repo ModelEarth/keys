@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="content-type" content="text/html; charset=UTF-8">
+  <title>API Key Settings</title>
+  <link rel="shortcut icon" href="data:image/x-icon;," type="image/x-icon">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <link type="text/css" rel="stylesheet" href="../localsite/css/base.css" id="/localsite/css/base.css" />
+  <script type="text/javascript" src="../localsite/js/localsite.js?showheader=true"></script>
+
+   <link rel="stylesheet" href="style.css">
+  <script>
+  //loadMarkdown("README.md", "readmeDiv", "_parent");
+  </script>
+
+
+</head>
+<body>
+
+  <div class="key-page">
+    <div class="key-page-header">
+      <h1>API Key Settings</h1>
+      <p>Add your API keys to unlock AI models and Github integration.</p>
+    </div>
+
+    <div id="key-root"></div>
+  </div>
+
+  <script src="providers.js"></script>
+  <script src="key-manager.js"></script>
+  <script>
+    KeyManager.migrateFromLegacy();
+    KeyManager.init(document.getElementById('key-root'));
+  </script>
+
+</body>
+</html>
