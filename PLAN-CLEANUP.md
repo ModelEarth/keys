@@ -8,9 +8,10 @@ copy currently tracked inside the `chat` repo at `chat/keys/`.
 ## Why the wait
 
 `chat`'s copy of this widget shows "server has a key configured" badges by
-reading a shared `docker/.env` file (`chat/server.mjs` → `SERVER_KEYS_JSON`
-→ `/api/server-keys`). The plan is to stop depending on `docker/.env` for
-this and instead read that signal from `CloudRoot/worker` (the Cloudflare
+reading the local env file (`chat/server.mjs` → `SERVER_KEYS_JSON`
+→ `/api/server-keys`; the file's location comes from `automation/paths.yaml`,
+see `chat/lib/env-loader.ts`). The plan is to stop depending on a local env
+file for this and instead read that signal from `CloudRoot/worker` (the Cloudflare
 Worker that already holds the real provider secrets). Removing the `chat`
 copy before that swap is proven working would leave `chat` with no working
 `/keys` page and no fallback.
@@ -27,7 +28,7 @@ copy before that swap is proven working would leave `chat` with no working
       host, set `window.KEY_MANAGER_CONFIG = { serverKeysUrl: "<worker
       URL>/api/key-status" }` before `key-manager.js` loads, and the
       "server key configured" badges reflect real Worker secrets, not
-      `docker/.env`.
+      the local env file.
 - [ ] Confirmed working when embedded by the `requests` engine
       (https://model.earth/requests/engine/), not just inside `chat`.
 - [ ] Confirmed how `chat` will actually pull this repo in going forward —
@@ -69,11 +70,11 @@ from `modelearth/chat`:
   instead of from `chat`'s own `keys/` folder.
 - Set `window.KEY_MANAGER_CONFIG` in those pages to point
   `serverKeysUrl` at the `CloudRoot/worker` `/api/key-status` endpoint,
-  replacing the current `/api/server-keys` (docker/.env-backed) default.
-- Keep `chat/app/api/server-keys/route.ts` and the `docker/.env`-reading
+  replacing the current `/api/server-keys` (local-env-file-backed) default.
+- Keep `chat/app/api/server-keys/route.ts` and the local-env-file-reading
   code in `chat/server.mjs` only if something else in `chat` still needs
   them — otherwise remove alongside this, per Loren's note that `auth` and
-  `keys` should both stop depending on `docker/.env`.
+  `keys` should both stop depending on a local env file.
 
 ## Out of scope for this file
 
