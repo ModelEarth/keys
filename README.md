@@ -13,6 +13,12 @@ framework. Lets a page collect and locally encrypt AI provider API keys
 - `key-manager.js` — the widget itself (`window.KeyManager`).
 - `providers.js` — the list of supported providers/models.
 - `style.css` — widget styling.
+- `js/llm-configs.js` — shared LLM provider list (`LLM_CONFIGS`) and insights
+  endpoint (`LLM_API_ENDPOINT`), loaded by `team/projects`. Moved from the
+  discontinued `docker` repo.
+- `js/llm-config.json` — the data `llm-configs.js` fetches from
+  `/keys/js/llm-config.json`; see `js/llm-config.md`.
+- `PLAN.md` — key management unification plan (moved from `team/key/`).
 
 ## Embedding
 

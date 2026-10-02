@@ -1,0 +1,113 @@
+{
+  "_comment": "LLM Provider Configuration - Add new AI providers by adding entries to the 'llms' array below",
+  "_documentation": {
+    "requestFormat": "Supported values: 'gemini', 'openai', 'anthropic' - determines how to structure the API request",
+    "responseFormat": "Supported values: 'gemini', 'openai', 'anthropic' - determines how to parse the API response",
+    "headers": "Use {apiKey} placeholder for dynamic API key substitution",
+    "endpoint": "Use {model} and {apiKey} placeholders for dynamic substitution",
+    "keyInfo": "Optional object containing description, link, and placeholder for API key input UI"
+  },
+  "llms": [
+    {
+      "id": "claude",
+      "name": "Claude",
+      "cacheKey": "claudeInsightsCache",
+      "defaultModel": "claude-sonnet-4-5",
+      "requiresApiKey": "ANTHROPIC_API_KEY",
+      "keyInfo": {
+        "description": "Your API key will be stored in your browser cache.",
+        "link": "https://console.anthropic.com/settings/keys",
+        "placeholder": "sk-ant-..."
+      },
+      "apiConfig": {
+        "endpoint": "https://api.anthropic.com/v1/messages",
+        "method": "POST",
+        "headers": {
+          "Content-Type": "application/json",
+          "x-api-key": "{apiKey}",
+          "anthropic-version": "2023-06-01"
+        },
+        "requestFormat": "anthropic",
+        "responseFormat": "anthropic",
+        "systemPrompt": "You are a helpful data analyst. Analyze the provided dataset and respond to the user's request.",
+        "temperature": 0.7,
+        "maxTokens": 2048
+      }
+    },
+    {
+      "id": "gemini",
+      "name": "Gemini",
+      "cacheKey": "geminiInsightsCache",
+      "defaultModel": "gemini-2.0-flash",
+      "requiresApiKey": "GEMINI_API_KEY",
+      "keyInfo": {
+        "description": "Your API key will be stored in your browser cache.",
+        "link": "https://ai.google.dev/gemini-api/docs/quickstart",
+        "placeholder": "AIza..."
+      },
+      "apiConfig": {
+        "endpoint": "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={apiKey}",
+        "method": "POST",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "requestFormat": "gemini",
+        "responseFormat": "gemini",
+        "temperature": 0.7,
+        "topK": 40,
+        "topP": 0.95,
+        "maxOutputTokens": 2048
+      }
+    },
+    {
+      "id": "openai",
+      "name": "OpenAI",
+      "cacheKey": "openaiInsightsCache",
+      "defaultModel": "gpt-4-turbo-preview",
+      "requiresApiKey": "OPENAI_API_KEY",
+      "keyInfo": {
+        "description": "Your API key will be stored in your browser cache.",
+        "link": "https://platform.openai.com/api-keys",
+        "placeholder": "sk-..."
+      },
+      "apiConfig": {
+        "endpoint": "https://api.openai.com/v1/chat/completions",
+        "method": "POST",
+        "headers": {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer {apiKey}"
+        },
+        "requestFormat": "openai",
+        "responseFormat": "openai",
+        "systemPrompt": "You are a helpful data analyst. Analyze the provided dataset and respond to the user's request.",
+        "temperature": 0.7,
+        "maxTokens": 2048
+      }
+    },
+    {
+      "id": "cohere",
+      "name": "Cohere",
+      "cacheKey": "cohereInsightsCache",
+      "defaultModel": "command",
+      "requiresApiKey": "COHERE_API_KEY",
+      "keyInfo": {
+        "description": "Your API key will be stored in your browser cache.",
+        "link": "https://dashboard.cohere.com/api-keys",
+        "placeholder": "..."
+      },
+      "apiConfig": {
+        "endpoint": "https://api.cohere.ai/v1/generate",
+        "method": "POST",
+        "headers": {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer {apiKey}"
+        },
+        "requestFormat": "cohere",
+        "responseFormat": "cohere",
+        "temperature": 0.7,
+        "maxTokens": 2048
+      }
+    }
+  ],
+  "apiEndpoint": "/api/insights/analyze"
+}
