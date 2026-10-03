@@ -31,18 +31,25 @@ framework. Lets a page collect and locally encrypt AI provider API keys
 </script>
 ```
 
-By default, `key-manager.js` only calls a same-origin app API
+By default, `key-manager.js` calls a same-origin app API
 (`/api/public-key`, `/api/server-keys`, `/api/validate-key`) when it detects
-it's running under a known host app (https, or ports 3000/3700/8888) — it
+it's running under a known host app (https, or ports 3000/3700/8888), and
 degrades gracefully to browser-only key storage otherwise.
 
-To point it at a different backend (e.g. the `CloudRoot/worker` Cloudflare
-Worker's `GET /api/key-status`), set config before `key-manager.js` loads:
+On **https://cloud.model.earth/keys/** those same-origin paths are served by
+the CloudRoot Worker, which holds the real provider keys as Cloudflare
+secrets, so no configuration is needed. Locally, `chat/server.mjs` serves
+them from the env file.
+
+To embed the widget on another site, point it at that Worker (the site's
+origin must be listed in the Worker's `ALLOWED_ORIGINS`) before
+`key-manager.js` loads:
 
 ```html
 <script>
   window.KEY_MANAGER_CONFIG = {
-    serverKeysUrl: 'https://llm-proxy-worker.<subdomain>.workers.dev/api/key-status',
+    serverKeysUrl: 'https://cloud.model.earth/api/key-status',
+    validateKeyUrl: 'https://cloud.model.earth/api/validate-key',
   };
 </script>
 ```

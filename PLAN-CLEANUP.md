@@ -18,17 +18,15 @@ copy before that swap is proven working would leave `chat` with no working
 
 ## Prerequisite (must be checked off before running anything below)
 
-- [ ] `worker/src/index.js` exposes `GET /api/key-status` (added; ships as
-      part of this same change) — deployed and confirmed reachable from
-      wherever this `keys` repo ends up hosted (CORS origin allow-list in
-      `worker/src/index.js`'s `ALLOWED_ORIGINS` will need the actual host
-      added — it currently only allows `model.earth`, `dreamstudio.com`,
-      and `localhost:8887`).
-- [ ] This repo's `index.html` / `key-manager.js`, when loaded from that
-      host, set `window.KEY_MANAGER_CONFIG = { serverKeysUrl: "<worker
-      URL>/api/key-status" }` before `key-manager.js` loads, and the
-      "server key configured" badges reflect real Worker secrets, not
-      the local env file.
+- [x] The CloudRoot Worker exposes `GET /api/key-status` (plus
+      `/api/server-keys`, `/api/public-key` and `/api/validate-key`, ported
+      from `chat/server.mjs`), deployed at https://cloud.model.earth.
+- [x] On cloud.model.earth this repo is served from the Worker's own origin,
+      so `key-manager.js` reaches those endpoints by its same-origin
+      defaults, with no `KEY_MANAGER_CONFIG` and no CORS entry. Other hosts
+      set `window.KEY_MANAGER_CONFIG` to `https://cloud.model.earth/api/...`
+      and need their origin in the Worker's `ALLOWED_ORIGINS`
+      (`worker/wrangler.toml`).
 - [ ] Confirmed working when embedded by the `requests` engine
       (https://model.earth/requests/engine/), not just inside `chat`.
 - [ ] Confirmed how `chat` will actually pull this repo in going forward —
