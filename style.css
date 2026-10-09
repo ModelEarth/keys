@@ -63,7 +63,7 @@
 .key-widget {
   font-family: var(--key-font);
   color: var(--key-text);
-  max-width: 680px;
+  max-width: 1400px;
   margin: 0 auto;
 }
 
