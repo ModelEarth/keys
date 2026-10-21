@@ -18,6 +18,9 @@
  * `id` when this is absent, so the API-specific strings live here in config
  * rather than being hardcoded in backend code.
  *
+ * keySteps field (optional): numbered steps for creating the key, shown under keyHint.
+ * localNote field (optional): a note after the steps shown only on localhost (localsite's .localonly).
+ *
  * noCreditsHint field (optional): user-facing message shown when the provider
  * reports the account has no API credits. Kept here in config so the wording
  * and any links are editable without touching backend/frontend code.
@@ -56,8 +59,15 @@ const _providers = [
     id: 'github-reports',
     name: 'GitHub Reports',
     keyPlaceholder: 'ghp_... or github_pat_...',
-    keyHint: 'Token with write access to modelearth/reports: classic with repo scope, or fine-grained with Contents read and write. RealityStream Run Models pushes its output there (GITHUB_REPORTS_TOKEN)',
-    getKeyUrl: 'https://github.com/settings/tokens',
+    keyHint: 'RealityStream Run Models pushes its output to modelearth/reports with this token (GITHUB_REPORTS_TOKEN). Get Key opens GitHub\'s fine-grained token form.',
+    keySteps: [
+      'Resource owner: modelearth (the organization, not your own account).',
+      'Repository access: Only select repositories, then choose reports.',
+      'Permissions, Repository permissions, "Contents". Metadata: Read is added automatically.',
+      'Expiration: set one. Run Models warns in red when the token stops working, so you can replace it here.',
+    ],
+    localNote: 'If your GitHub organization isn\'t listed as a resource owner, or the token stays pending, an organization owner needs to approve it.',
+    getKeyUrl: 'https://github.com/settings/personal-access-tokens/new',
     tokenOnly: true,
     models: [],
   },

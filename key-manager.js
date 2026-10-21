@@ -957,7 +957,7 @@
     getKeyLink.href = provider.getKeyUrl;
     getKeyLink.target = '_blank';
     getKeyLink.rel = 'noopener';
-    getKeyLink.textContent = (keyPresent ? 'Get new key ↗' : 'Get key ↗');
+    getKeyLink.textContent = (keyPresent ? 'Get New Key ↗' : 'Get Key ↗');
     label.appendChild(labelSpan);
     label.appendChild(getKeyLink);
 
@@ -1037,7 +1037,7 @@
         removeKey(provider.id);
         _validatedKeys.delete(provider.id);
         _invalidKeys.delete(provider.id);
-        getKeyLink.textContent = 'Get key ↗';
+        getKeyLink.textContent = 'Get Key ↗';
         clearStatus();
         setKeyRowOpen(true);
         refreshHeaderStatus();
@@ -1069,7 +1069,7 @@
         _validatedKeys.delete(provider.id);
         _invalidKeys.delete(provider.id);
         showStatus(statusMsg, 'Key removed.', 'ok');
-        getKeyLink.textContent = 'Get key ↗';
+        getKeyLink.textContent = 'Get Key ↗';
         refreshHeaderStatus();
         refreshEditKeyVisibility();
         return;
@@ -1078,7 +1078,7 @@
       _validatedKeys.delete(provider.id);
       _invalidKeys.delete(provider.id);
       showStatus(statusMsg, 'Key saved. Validating…', 'ok');
-      getKeyLink.textContent = 'Get new key ↗';
+      getKeyLink.textContent = 'Get New Key ↗';
       refreshHeaderStatus();
       refreshEditKeyVisibility();
       _validateKey(provider.id, val);
@@ -1106,8 +1106,39 @@
     if (provider.keyHint) {
       var hintEl = document.createElement('div');
       hintEl.className = 'key-key-hint';
-      hintEl.textContent = provider.keyHint;
+      // "Get Key" in a hint links to the provider's getKeyUrl
+      var hintParts = provider.keyHint.split('Get Key');
+      if (hintParts.length > 1 && provider.getKeyUrl) {
+        var hintLink = document.createElement('a');
+        hintLink.href = provider.getKeyUrl;
+        hintLink.target = '_blank';
+        hintLink.rel = 'noopener';
+        hintLink.textContent = 'Get Key';
+        hintEl.appendChild(document.createTextNode(hintParts[0]));
+        hintEl.appendChild(hintLink);
+        hintEl.appendChild(document.createTextNode(hintParts.slice(1).join('Get Key')));
+      } else {
+        hintEl.textContent = provider.keyHint;
+      }
       keyRow.appendChild(hintEl);
+    }
+    if (provider.keySteps && provider.keySteps.length) {
+      var stepsEl = document.createElement('ol');
+      stepsEl.className = 'key-key-steps';
+      provider.keySteps.forEach(function (step) {
+        var li = document.createElement('li');
+        li.textContent = step;
+        stepsEl.appendChild(li);
+      });
+      keyRow.appendChild(stepsEl);
+    }
+    if (provider.localNote) {
+      // Hidden until localsite.js shows .localonly on localhost
+      var localNoteEl = document.createElement('div');
+      localNoteEl.className = 'key-key-steps-note localonly';
+      localNoteEl.style.display = 'none';
+      localNoteEl.textContent = provider.localNote;
+      keyRow.appendChild(localNoteEl);
     }
     keyRow.appendChild(label);
     keyRow.appendChild(inputWrap);
