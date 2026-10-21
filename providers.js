@@ -63,7 +63,7 @@ const _providers = [
     keySteps: [
       'Resource owner: modelearth (the organization, not your own account).',
       'Repository access: Only select repositories, then choose reports.',
-      'Permissions, Repository permissions, "Contents". Metadata: Read is added automatically.',
+      'Permissions, Repository permissions, "Contents" and choose "Access: Read and Write". Metadata: Read is added automatically.',
       'Expiration: set one. Run Models warns in red when the token stops working, so you can replace it here.',
     ],
     localNote: 'If your GitHub organization isn\'t listed as a resource owner, or the token stays pending, an organization owner needs to approve it.',
