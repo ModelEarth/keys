@@ -331,6 +331,7 @@
     DEEPSEEK_API_KEY:              'deepseek',
     DISCORD_BOT_TOKEN:             'discord',
     GITHUB_PERSONAL_ACCESS_TOKEN:  'github',
+    GITHUB_REPORTS_TOKEN:          'github-reports',
     PINECONE_API_KEY:              'pinecone',
     VOYAGE_API_KEY:                'voyage',
     NEXT_PUBLIC_SUPABASE_URL:      'supabase',
@@ -349,6 +350,7 @@
     deepseek:   'DEEPSEEK_API_KEY',
     discord:    'DISCORD_BOT_TOKEN',
     github:     'GITHUB_PERSONAL_ACCESS_TOKEN',
+    'github-reports': 'GITHUB_REPORTS_TOKEN',
     pinecone:   'PINECONE_API_KEY',
     voyage:     'VOYAGE_API_KEY',
     supabase:   'NEXT_PUBLIC_SUPABASE_URL',
@@ -715,12 +717,27 @@
     });
   }
 
+  // #need=GITHUB_REPORTS_TOKEN (env names or provider ids, comma-separated): the keys a page needs set
+  function _neededProviderIds() {
+    var match = /(?:^#|&)need=([^&]*)/.exec(location.hash);
+    if (!match) return [];
+    return decodeURIComponent(match[1]).split(',').map(function (name) {
+      name = name.trim();
+      return ENV_TO_PROVIDER[name] || name;
+    }).filter(Boolean);
+  }
+
   function _renderWidget(containerEl, options) {
     var providers = (window.KeyManagerProviders || []);
     containerEl.innerHTML = '';
     containerEl.className = (containerEl.className + ' key-widget').trim();
 
-    if (_shouldShowGeminiStarterNotice(providers, options)) {
+    var neededIds = _neededProviderIds();
+    var needed = neededIds.map(function (id) {
+      return providers.filter(function (provider) { return provider.id === id; })[0];
+    }).filter(Boolean);
+
+    if (!needed.length && _shouldShowGeminiStarterNotice(providers, options)) {
       containerEl.appendChild(buildGeminiStarterNotice());
     }
 
@@ -743,11 +760,34 @@
     var list = document.createElement('div');
     list.className = 'key-provider-list';
 
-    providers.forEach(function (provider) {
-      list.appendChild(buildProviderCard(provider));
-    });
-
-    containerEl.appendChild(list);
+    if (needed.length) {
+      // Only the needed keys, open for entry, then Show More for the rest
+      needed.forEach(function (provider) {
+        list.appendChild(buildProviderCard(provider, true));
+      });
+      containerEl.appendChild(list);
+      var more = document.createElement('div');
+      more.className = 'key-provider-list';
+      more.hidden = true;
+      providers.forEach(function (provider) {
+        if (needed.indexOf(provider) === -1) more.appendChild(buildProviderCard(provider));
+      });
+      var moreBtn = document.createElement('button');
+      moreBtn.type = 'button';
+      moreBtn.className = 'key-btn key-show-more';
+      moreBtn.textContent = 'Show More';
+      moreBtn.addEventListener('click', function () {
+        more.hidden = false;
+        moreBtn.remove();
+      });
+      containerEl.appendChild(moreBtn);
+      containerEl.appendChild(more);
+    } else {
+      providers.forEach(function (provider) {
+        list.appendChild(buildProviderCard(provider));
+      });
+      containerEl.appendChild(list);
+    }
 
     // Trigger background validation for all stored browser keys
     providers.forEach(function (provider) {
@@ -789,13 +829,14 @@
     return notice;
   }
 
-  function buildProviderCard(provider) {
+  // needed: open with the key field showing, so a stored key that doesn't work can be replaced
+  function buildProviderCard(provider, needed) {
     var card = document.createElement('div');
     card.className = 'key-provider';
     card.id = 'key-provider-' + provider.id;
 
-    var startOpen = hasKey(provider.id);
-    var body = buildProviderBody(provider, startOpen);
+    var startOpen = needed || hasKey(provider.id);
+    var body = buildProviderBody(provider, startOpen, needed);
     var header = buildProviderHeader(provider, startOpen);
 
     header.addEventListener('click', function () {
@@ -853,7 +894,7 @@
     return header;
   }
 
-  function buildProviderBody(provider, startOpen) {
+  function buildProviderBody(provider, startOpen, needed) {
     var body = document.createElement('div');
     body.className = 'key-provider-body';
     body.hidden = !startOpen;
@@ -905,7 +946,7 @@
     // Key input section — hidden by default when browser key is already set
     var keyRow = document.createElement('div');
     keyRow.className = 'key-key-row';
-    keyRow.hidden = browserKeyPresent;
+    keyRow.hidden = browserKeyPresent && !needed;
 
     var label = document.createElement('div');
     label.className = 'key-key-label';

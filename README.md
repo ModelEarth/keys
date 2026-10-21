@@ -31,6 +31,12 @@ framework. Lets a page collect and locally encrypt AI provider API keys
 </script>
 ```
 
+To send people to just the keys a page needs, link with `#need=` and env
+names or provider ids, comma-separated:
+`/keys/#need=GITHUB_REPORTS_TOKEN`. Those keys show open for entry, followed
+by a Show More button for the rest. A page on the same origin reads a stored
+key with `KeyManager.initCrypto().then(() => KeyManager.get('github-reports'))`.
+
 By default, `key-manager.js` calls a same-origin app API
 (`/api/public-key`, `/api/server-keys`, `/api/validate-key`) when it detects
 it's running under a known host app (https, or ports 3000/3700/8888), and

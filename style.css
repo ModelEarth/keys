@@ -74,6 +74,10 @@
   gap: 8px;
 }
 
+/* With #need=, the rest of the keys sit after Show More */
+.key-provider-list[hidden] { display: none; }
+.key-show-more { margin: 12px 0; }
+
 /* Provider card */
 .key-provider {
   border: 1px solid var(--key-border);

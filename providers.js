@@ -53,6 +53,15 @@ const _providers = [
     models: [],
   },
   {
+    id: 'github-reports',
+    name: 'GitHub Reports',
+    keyPlaceholder: 'ghp_... or github_pat_...',
+    keyHint: 'Token with write access to modelearth/reports: classic with repo scope, or fine-grained with Contents read and write. RealityStream Run Models pushes its output there (GITHUB_REPORTS_TOKEN)',
+    getKeyUrl: 'https://github.com/settings/tokens',
+    tokenOnly: true,
+    models: [],
+  },
+  {
     id: 'google',
     name: 'Google',
     keyPlaceholder: 'AIza...',
