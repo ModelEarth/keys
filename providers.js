@@ -21,6 +21,9 @@
  * keySteps field (optional): numbered steps for creating the key, shown under keyHint.
  * localNote field (optional): a note after the steps shown only on localhost (localsite's .localonly).
  *
+ * section field (optional): a heading the key is listed under, such as 'Planet.Live: The Veil'. Keys sharing a
+ * section sit together, after the keys with none.
+ *
  * noCreditsHint field (optional): user-facing message shown when the provider
  * reports the account has no API credits. Kept here in config so the wording
  * and any links are editable without touching backend/frontend code.
@@ -266,6 +269,28 @@ const _providers = [
     tokenOnly: true,
     models: [],
   },
+  // The Veil (veil/code) sends these with its own requests on this site (veil/code/visitor-keys.js), for when
+  // the site's Worker doesn't hold them.
+  {
+    id: 'veil-blob',
+    name: 'Case, Picture and Video Storage',
+    section: 'Planet.Live: The Veil',
+    keyPlaceholder: 'vercel_blob_rw_...',
+    keyHint: "Read-write token for the Vercel Blob store that holds The Veil's cases, scene pictures and trailer videos (BLOB_READ_WRITE_TOKEN)",
+    getKeyUrl: 'https://vercel.com/dashboard/stores',
+    tokenOnly: true,
+    models: [],
+  },
+  {
+    id: 'fal',
+    name: 'Scene Painting and Filming',
+    section: 'Planet.Live: The Veil',
+    keyPlaceholder: '',
+    keyHint: "fal.ai key that paints The Veil's scene pictures and films its trailer clips (FAL_KEY)",
+    getKeyUrl: 'https://fal.ai/dashboard/keys',
+    tokenOnly: true,
+    models: [],
+  },
 ];
 
 // Browser global (loaded via <script> tag)
@@ -274,9 +299,10 @@ if (typeof window !== 'undefined') window.KeyManagerProviders = _providers;
 // Node.js / CommonJS (imported by chat/lib/providers.ts)
 if (typeof module !== 'undefined' && module.exports) module.exports = _providers;
 
-// CLI providers — shown only on localhost (no API key required)
+// CLI providers — shown only on localhost (no API key required), before the keys listed under a section
 if (typeof location !== 'undefined' && (location.hostname === 'localhost' || location.hostname === '127.0.0.1')) {
-  _providers.push(
+  var _firstSectioned = _providers.findIndex(function (p) { return p.section; });
+  _providers.splice(_firstSectioned === -1 ? _providers.length : _firstSectioned, 0,
     {
       id: 'claude-code-cli',
       name: 'Claude Code CLI',

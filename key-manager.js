@@ -335,6 +335,8 @@
     PINECONE_API_KEY:              'pinecone',
     VOYAGE_API_KEY:                'voyage',
     NEXT_PUBLIC_SUPABASE_URL:      'supabase',
+    BLOB_READ_WRITE_TOKEN:         'veil-blob',
+    FAL_KEY:                       'fal',
   };
 
   var PROVIDER_TO_ENV = {
@@ -354,6 +356,8 @@
     pinecone:   'PINECONE_API_KEY',
     voyage:     'VOYAGE_API_KEY',
     supabase:   'NEXT_PUBLIC_SUPABASE_URL',
+    'veil-blob': 'BLOB_READ_WRITE_TOKEN',
+    fal:        'FAL_KEY',
   };
 
   var COPY_PREF_KEY = 'settings_copymykeys';
@@ -762,16 +766,12 @@
 
     if (needed.length) {
       // Only the needed keys, open for entry, then Show More for the rest
-      needed.forEach(function (provider) {
-        list.appendChild(buildProviderCard(provider, true));
-      });
+      appendProviderCards(list, needed, true);
       containerEl.appendChild(list);
       var more = document.createElement('div');
       more.className = 'key-provider-list';
       more.hidden = true;
-      providers.forEach(function (provider) {
-        if (needed.indexOf(provider) === -1) more.appendChild(buildProviderCard(provider));
-      });
+      appendProviderCards(more, providers.filter(function (provider) { return needed.indexOf(provider) === -1; }));
       var moreBtn = document.createElement('button');
       moreBtn.type = 'button';
       moreBtn.className = 'key-btn key-show-more';
@@ -783,9 +783,7 @@
       containerEl.appendChild(moreBtn);
       containerEl.appendChild(more);
     } else {
-      providers.forEach(function (provider) {
-        list.appendChild(buildProviderCard(provider));
-      });
+      appendProviderCards(list, providers);
       containerEl.appendChild(list);
     }
 
@@ -804,6 +802,21 @@
       ' When you send a message, the key is briefly decrypted in memory and sent over HTTPS to the server, which passes it directly to the AI provider.' +
       ' HTTPS prevents network interception, but code already running on this page (e.g. a malicious extension or XSS) could in theory read the key from memory at that moment.';
     containerEl.appendChild(notice);
+  }
+
+  // The cards, with a heading before the first key of each section (providers.js's section field)
+  function appendProviderCards(listEl, providers, needed) {
+    var section = null;
+    providers.forEach(function (provider) {
+      if (provider.section && provider.section !== section) {
+        var heading = document.createElement('h3');
+        heading.className = 'key-section-heading';
+        heading.textContent = provider.section;
+        listEl.appendChild(heading);
+      }
+      section = provider.section || null;
+      listEl.appendChild(buildProviderCard(provider, needed));
+    });
   }
 
   function _shouldShowGeminiStarterNotice(providers, options) {

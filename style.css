@@ -76,6 +76,9 @@
 
 /* With #need=, the rest of the keys sit after Show More */
 .key-provider-list[hidden] { display: none; }
+
+/* A section's heading (providers.js's section field), such as Planet.Live: The Veil */
+.key-section-heading { margin: 16px 0 0; font-size: 15px; font-weight: 600; color: var(--key-text); }
 .key-show-more { margin: 12px 0; }
 
 /* Provider card */
