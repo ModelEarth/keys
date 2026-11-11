@@ -37,6 +37,13 @@ names or provider ids, comma-separated:
 by a Show More button for the rest. A page on the same origin reads a stored
 key with `KeyManager.initCrypto().then(() => KeyManager.get('github-reports'))`.
 
+To send a key to the server, use `KeyManager.forServer(id)` rather than
+`KeyManager.get(id)`. Where the server publishes `/api/public-key`, the providers
+it names in `server_providers` are encrypted so only it can read them: `get()`
+returns null for those, and `forServer()` returns the `rsa:...` value to send as
+`X-Provider-Key`. Other keys, like GitHub tokens that pages use directly, stay
+readable in the browser.
+
 By default, `key-manager.js` calls a same-origin app API
 (`/api/public-key`, `/api/server-keys`, `/api/validate-key`) when it detects
 it's running under a known host app (https, or ports 3000/3700/8888), and

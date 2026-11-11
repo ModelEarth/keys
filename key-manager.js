@@ -7,12 +7,17 @@
  *
  * Keys are encrypted at rest using the Web Crypto API with a non-extractable
  * AES-GCM-256 key stored in IndexedDB — matching crypto.ts in the Next.js app.
+ * That stops a script copying the AES key out, but not asking the browser to use
+ * it. So where the server publishes a public key (/api/public-key) and names a
+ * provider in server_providers, that provider's key is encrypted for the server
+ * instead ("rsa:..."), and pages here can't read it again once it's saved.
  *
  * Public API (window.KeyManager):
  *   KeyManager.init(containerEl, options)  — render widget into a container element
  *   KeyManager.get(providerId)             — returns plaintext key or null (from cache)
+ *   KeyManager.forServer(providerId)       — what to send a server as the key: "rsa:..." or plaintext
  *   KeyManager.set(providerId, value)      — encrypts and writes to settings_api-keys
- *   KeyManager.has(providerId)             — boolean (from cache)
+ *   KeyManager.has(providerId)             — boolean (in the cache, or saved for the server)
  *   KeyManager.remove(providerId)          — deletes from cache + storage
  *   KeyManager.getAll()                    — returns full settings_api-keys object (raw/encrypted)
  *   KeyManager.migrateFromLegacy()         — one-time migration from aPro / ${aiType}_api_key
@@ -37,6 +42,7 @@
     location.protocol === 'https:' ||
     location.port === '3000' ||
     location.port === '3700' ||
+    location.port === '3701' ||
     location.port === '8888'
   );
 
@@ -46,16 +52,23 @@
   var PUBLIC_KEY_URL = DEFAULT_PUBLIC_KEY_URL;
 
   var _cachedServerPublicKey = null;
+  var _publicKeyFailedUrl = null;
+  // Providers the server says it can use from an encrypted key. Null on a server
+  // that doesn't say (chat's), where every key is encrypted for it, unlabelled.
+  var _serverProviders = null;
 
   function _fetchServerPublicKey() {
     if (_cachedServerPublicKey) return Promise.resolve(_cachedServerPublicKey);
     if (!PUBLIC_KEY_URL) return Promise.reject(new Error('No public key endpoint'));
-    return fetch(PUBLIC_KEY_URL)
+    if (_publicKeyFailedUrl === PUBLIC_KEY_URL) return Promise.reject(new Error('Public key unavailable'));
+    var url = PUBLIC_KEY_URL;
+    return fetch(url)
       .then(function (r) {
         if (!r.ok) throw new Error('Public key unavailable');
         return r.json();
       })
       .then(function (jwk) {
+        _serverProviders = Array.isArray(jwk.server_providers) ? jwk.server_providers : null;
         return crypto.subtle.importKey(
           'jwk', jwk,
           { name: 'RSA-OAEP', hash: 'SHA-256' },
@@ -66,15 +79,25 @@
       .then(function (key) {
         _cachedServerPublicKey = key;
         return key;
+      })
+      .catch(function (err) {
+        _publicKeyFailedUrl = url;
+        throw err;
       });
   }
 
-  function _encryptForServer(plaintext) {
+  // Rejects for a provider the server can't use, so its key stays readable here.
+  // The provider's name goes inside, so the server can't be tricked into sending
+  // the key to a different provider.
+  function _encryptForServer(plaintext, providerId) {
     return _fetchServerPublicKey().then(function (key) {
+      if (_serverProviders && _serverProviders.indexOf(providerId) === -1) {
+        throw new Error('Not a provider the server can use');
+      }
       return crypto.subtle.encrypt(
         { name: 'RSA-OAEP' },
         key,
-        new TextEncoder().encode(plaintext)
+        new TextEncoder().encode(_serverProviders ? providerId + '\n' + plaintext : plaintext)
       );
     }).then(function (ct) {
       return 'rsa:' + btoa(String.fromCharCode.apply(null, new Uint8Array(ct)));
@@ -239,6 +262,7 @@
       if (_isEncrypted(stored)) {
         return _decryptValue(stored).then(function (pt) {
           _plaintextCache[providerId] = pt;
+          return _moveToServer(providerId, stored, pt);
         }).catch(function () {
           // Cannot decrypt (different browser key) — remove the stale entry.
           delete _plaintextCache[providerId];
@@ -246,16 +270,41 @@
       }
       // Plaintext key — cache it and re-encrypt (try RSA first).
       _plaintextCache[providerId] = stored;
-      return _encryptForServer(stored).then(function (rsaBlob) {
-        data[providerId] = rsaBlob;
-        _writeAllRaw(data);
+      return _encryptForServer(stored, providerId).then(function (rsaBlob) {
+        _replaceStored(providerId, stored, rsaBlob);
+        _forgetPlaintext(providerId, stored);
       }).catch(function () {
         return _encryptValue(stored).then(function (enc) {
-          data[providerId] = enc;
-          _writeAllRaw(data);
+          _replaceStored(providerId, stored, enc);
         }).catch(function () {});
       });
     }));
+  }
+
+  // Replaces a stored value, unless it was changed in the meantime.
+  function _replaceStored(providerId, expected, value) {
+    var data = _readAllRaw();
+    if (data[providerId] !== expected) return;
+    data[providerId] = value;
+    _writeAllRaw(data);
+  }
+
+  // A key saved before the server could hold it: re-encrypts it for the server.
+  function _moveToServer(providerId, stored, plaintext) {
+    return _fetchServerPublicKey().then(function () {
+      if (!_serverProviders) return;
+      return _encryptForServer(plaintext, providerId).then(function (rsaBlob) {
+        _replaceStored(providerId, stored, rsaBlob);
+        _forgetPlaintext(providerId, plaintext);
+      });
+    }).catch(function () {});
+  }
+
+  // Once a key is safely encrypted for the server, this page stops holding it,
+  // unless the visitor turned on the window for copying their keys.
+  function _forgetPlaintext(providerId, value) {
+    if (!_serverProviders || (localStorage.getItem(COPY_PREF_KEY) || 'off') !== 'off') return;
+    if (_plaintextCache[providerId] === value) delete _plaintextCache[providerId];
   }
 
   // -- Storage helpers (raw, operates on encrypted values) ---------------------
@@ -281,18 +330,35 @@
     return _plaintextCache[providerId] || null;
   }
 
+  function _serverBlob(providerId) {
+    var stored = _readAllRaw()[providerId];
+    return _isServerEncrypted(stored) ? stored : null;
+  }
+
+  // What to send a server as the key, in place of KeyManager.get().
+  function getKeyForServer(providerId) {
+    return _serverBlob(providerId) || getKey(providerId);
+  }
+
+  // The key to check with the validate endpoint, which only a server that names
+  // its providers can open when it's encrypted.
+  function _keyToValidate(providerId) {
+    return _serverProviders ? getKeyForServer(providerId) : getKey(providerId);
+  }
+
   function setKey(providerId, value) {
     // Update cache immediately.
     _plaintextCache[providerId] = value;
     // Record edit timestamp for the 1-hour export window.
     try { localStorage.setItem(LAST_EDIT_KEY, String(Date.now())); } catch (_) {}
     // Try RSA (server-only decryptable) first; fall back to browser AES.
-    _encryptForServer(value).then(function (rsaBlob) {
+    return _encryptForServer(value, providerId).then(function (rsaBlob) {
       var data = _readAllRaw();
       data[providerId] = rsaBlob;
       _writeAllRaw(data);
+      _forgetPlaintext(providerId, value);
     }).catch(function () {
-      _encryptValue(value).then(function (enc) {
+      return _encryptValue(value).then(function (enc) {
         var data = _readAllRaw();
         data[providerId] = enc;
         _writeAllRaw(data);
@@ -312,7 +378,7 @@
   }
 
   function hasKey(providerId) {
-    return !!getKey(providerId);
+    return !!getKey(providerId) || !!_serverBlob(providerId);
   }
 
   // -- Legacy migration ---------------------------------------------------------
@@ -714,7 +780,7 @@
 
     // Run crypto init and server key fetch in parallel; render once both settle.
     Promise.all([
-      _initCrypto().catch(function () {}),
+      _fetchServerPublicKey().catch(function () {}).then(_initCrypto).catch(function () {}),
       _loadServerKeys(),
     ]).then(function () {
       _renderWidget(containerEl, options);
@@ -749,7 +815,7 @@
     var pastePanel = buildPastePanel(function () {
       providers.forEach(function (provider) {
         _refreshStatusIcon(provider.id);
-        var key = getKey(provider.id);
+        var key = _keyToValidate(provider.id);
         if (key) _validateKey(provider.id, key);
       });
       var currentPref = localStorage.getItem(COPY_PREF_KEY) || 'off';
@@ -789,18 +855,23 @@
 
     // Trigger background validation for all stored browser keys
     providers.forEach(function (provider) {
-      var key = getKey(provider.id);
+      var key = _keyToValidate(provider.id);
       if (key) _validateKey(provider.id, key);
     });
 
     // Security notice
     var notice = document.createElement('div');
     notice.className = 'key-notice';
-    notice.innerHTML = ICON_INFO +
-      ' Keys are encrypted at rest using AES-GCM with a browser-bound key stored in IndexedDB.' +
-      ' That key is non-extractable — JavaScript cannot read its raw bytes, so it cannot be stolen by reading storage.' +
-      ' When you send a message, the key is briefly decrypted in memory and sent over HTTPS to the server, which passes it directly to the AI provider.' +
-      ' HTTPS prevents network interception, but code already running on this page (e.g. a malicious extension or XSS) could in theory read the key from memory at that moment.';
+    notice.innerHTML = ICON_INFO + (_serverProviders
+      ? ' Once saved, AI model keys are encrypted so that only this site\'s server can read them, and pages here can\'t read them back.' +
+        ' Each request sends the encrypted value over HTTPS, and the server decrypts it only to call that provider.' +
+        ' Code running on this site, such as a malicious extension or injected script, could still capture a key while you enter it, or spend a saved key through the server without seeing it.' +
+        ' Keys that pages use directly, such as GitHub tokens, can still be read by code running on this site.' +
+        ' Use keys with spending limits where your provider offers them.'
+      : ' Keys are encrypted in this browser using AES-GCM, with a key stored in IndexedDB that scripts cannot copy out.' +
+        ' Scripts running on this site can still ask the browser to decrypt your keys, so a malicious extension or injected script could read them whenever a page here is open.' +
+        ' Keys are sent over HTTPS to the server, which passes them to the AI provider.' +
+        ' Use keys with spending limits where your provider offers them.');
     containerEl.appendChild(notice);
   }
 
@@ -980,7 +1051,9 @@
     var input = document.createElement('input');
     input.type = 'password';
     input.className = 'key-key-input';
-    input.placeholder = provider.keyPlaceholder || 'Paste your API key';
+    var emptyPlaceholder = provider.keyPlaceholder || 'Paste your API key';
+    var savedPlaceholder = 'Saved. Paste a new key to replace it.';
+    input.placeholder = _serverBlob(provider.id) ? savedPlaceholder : emptyPlaceholder;
     input.value = getKey(provider.id) || '';
     input.setAttribute('autocomplete', 'off');
 
@@ -1040,7 +1113,8 @@
 
       statusMsg.className = 'key-status-msg ok';
       statusMsg.innerHTML =
-        'The ' + provider.name + ' key is encrypted in your browser storage. ' +
+        'The ' + provider.name + ' key is encrypted in your browser storage' +
+        (_serverBlob(provider.id) ? ', readable only by this site\'s server. ' : '. ') +
         '<button type="button" class="key-status-link key-status-link-danger">Delete key</button>';
 
       var deleteBtn = statusMsg.querySelector('.key-status-link-danger');
@@ -1051,6 +1125,7 @@
         _validatedKeys.delete(provider.id);
         _invalidKeys.delete(provider.id);
         getKeyLink.textContent = 'Get Key ↗';
+        input.placeholder = emptyPlaceholder;
         clearStatus();
         setKeyRowOpen(true);
         refreshHeaderStatus();
@@ -1077,6 +1152,11 @@
 
     function submitKeyValue() {
       var val = input.value.trim();
+      if (!val && _serverBlob(provider.id)) {
+        // The field is empty because this key can't be shown, not because it was cleared.
+        showStatus(statusMsg, 'This key is saved but can\'t be shown. Paste a new key to replace it, or use the key icon to delete it.', 'ok');
+        return;
+      }
       if (!val) {
         removeKey(provider.id);
         _validatedKeys.delete(provider.id);
@@ -1087,7 +1167,11 @@
         refreshEditKeyVisibility();
         return;
       }
-      setKey(provider.id, val);
+      setKey(provider.id, val).then(function () {
+        if (!_serverBlob(provider.id) || input.value.trim() !== val) return;
+        input.value = '';
+        input.placeholder = savedPlaceholder;
+      });
       _validatedKeys.delete(provider.id);
       _invalidKeys.delete(provider.id);
       showStatus(statusMsg, 'Key saved. Validating…', 'ok');
@@ -1245,6 +1329,7 @@
   window.KeyManager = {
     init: init,
     get: getKey,
+    forServer: getKeyForServer,
     set: setKey,
     has: hasKey,
     remove: removeKey,
